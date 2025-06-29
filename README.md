@@ -1,3 +1,21 @@
+# Discord Trivia Bot
+
+## Invite Link
+
+To invite the bot to your server with the correct permissions, use this link:
+
+[Invite the bot](https://discord.com/oauth2/authorize?client_id=1387544241705713784&scope=bot%20applications.commands&permissions=68608)
+
+**Required permissions:**
+- View Channels
+- Send Messages
+- Add Reactions
+- Read Message History
+
+These permissions are sufficient for all bot features. No embed or file permissions are required.
+
+---
+
 # Bad Boss Union Trivia Bot
 
 A Discord bot that quizzes users with union-related trivia as a grumpy, union-busting boss. Answer correctly to earn points and make the boss grumpy!
