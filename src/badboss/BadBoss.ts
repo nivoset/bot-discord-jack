@@ -1,7 +1,6 @@
 import { TextChannel, Message, MessageReaction, User, ChatInputCommandInteraction } from 'discord.js';
-import { loadYamlArray, loadTriviaQuestions } from './yamlUtils';
-import * as path from 'path';
 import logger from './logger';
+import { getRandomQuestion, getGoodResponses, getBadResponses, getPossibleAnswers, type TriviaQuestion } from './QuestionsDatabase';
 
 export async function sendQuestionWithReactions(
   channel: TextChannel,
@@ -31,7 +30,7 @@ export async function sendQuestionWithReactions(
 
 export async function askQuestion(
   channel: TextChannel,
-  question: any,
+  question: TriviaQuestion,
   possibleAnswers: string[],
   letterEmojis: string[]
 ): Promise<{ message: Message, correctIndex: number, answers: string[] }> {
@@ -80,33 +79,32 @@ export async function waitForAnswer(
 }
 
 export class BadBoss {
-  private questionsDir: string;
-  private triviaQuestions: any[];
-  private possibleAnswers: string[];
-  private goodResponses: string[];
-  private badResponses: string[];
-
-  constructor(questionsDir: string) {
-    this.questionsDir = questionsDir;
-    this.triviaQuestions = loadTriviaQuestions(this.questionsDir);
-    this.possibleAnswers = loadYamlArray(this.questionsDir, 'reactions/possible_answers.yml', 'answers');
-    this.goodResponses = loadYamlArray(this.questionsDir, 'reactions/good_responses.yml', 'responses');
-    this.badResponses = loadYamlArray(this.questionsDir, 'reactions/bad_responses.yml', 'responses');
-  }
+  constructor() {}
 
   async runSession(interaction: ChatInputCommandInteraction) {
     let score = 0;
     let stillPlaying = true;
-    let usedQuestions: Set<number> = new Set();
     let isFirst = true;
     let channel = interaction.channel as TextChannel;
     const letterEmojis = ['🇦', '🇧', '🇨', '🇩'];
-    while (stillPlaying && usedQuestions.size < this.triviaQuestions.length) {
-      // Pick a random unused question
-      let qIdx: number;
-      do { qIdx = Math.floor(Math.random() * this.triviaQuestions.length); } while (usedQuestions.has(qIdx));
-      usedQuestions.add(qIdx);
-      const question = this.triviaQuestions[qIdx];
+    const usedQuestions = new Set<string>();
+    while (stillPlaying) {
+      // Fetch a random question not used yet
+      let question: TriviaQuestion | undefined;
+      let attempts = 0;
+      do {
+        question = await getRandomQuestion();
+        attempts++;
+      } while (question && usedQuestions.has(question.question) && attempts < 10);
+      if (!question || usedQuestions.has(question.question)) {
+        logger.info('No more unique questions available.');
+        break;
+      }
+      usedQuestions.add(question.question);
+      // Fetch possible answers and responses for this round
+      const possibleAnswers = await getPossibleAnswers();
+      const goodResponses = await getGoodResponses();
+      const badResponses = await getBadResponses();
       let fullMsg: Message;
       let correctIndex: number;
       let answers: string[];
@@ -114,8 +112,8 @@ export class BadBoss {
         // For the first question, use interaction.reply
         let ans = [question.correct_answer];
         const incorrects = Array.isArray(question.incorrect_answers) ? question.incorrect_answers.slice() : [];
-        while (incorrects.length < 3 && this.possibleAnswers.length > 0) {
-          const pick = this.possibleAnswers[Math.floor(Math.random() * this.possibleAnswers.length)];
+        while (incorrects.length < 3 && possibleAnswers.length > 0) {
+          const pick = possibleAnswers[Math.floor(Math.random() * possibleAnswers.length)];
           if (!incorrects.includes(pick) && pick !== question.correct_answer) incorrects.push(pick);
         }
         ans = ans.concat(incorrects).slice(0, 4);
@@ -132,8 +130,9 @@ export class BadBoss {
             await fullMsg.react(letterEmojis[i]);
             logger.debug({ emoji: letterEmojis[i] }, 'Reaction added');
           } catch (error: any) {
-            logger.error({ error, emoji: letterEmojis[i] }, 'Failed to add reaction');
-            throw error;
+            logger.error({ error }, 'Failed to reply, falling back to channel.send');
+            await channel.send(`:man_office_worker: Typical. Can't even answer a simple question. Time's up!`);
+            break;
           }
         }
         correctIndex = ans.findIndex((a: string) => a === question.correct_answer);
@@ -141,7 +140,7 @@ export class BadBoss {
         isFirst = false;
       } else {
         logger.info('Asking next question');
-        const result = await askQuestion(channel, question, this.possibleAnswers, letterEmojis);
+        const result = await askQuestion(channel, question, possibleAnswers, letterEmojis);
         fullMsg = result.message;
         correctIndex = result.correctIndex;
         answers = result.answers;
@@ -161,7 +160,7 @@ export class BadBoss {
       }
       if (answered) {
         score++;
-        const good = this.goodResponses.length ? this.goodResponses[Math.floor(Math.random() * this.goodResponses.length)] : 'Correct!';
+        const good = goodResponses.length ? goodResponses[Math.floor(Math.random() * goodResponses.length)] : 'Correct!';
         logger.info('User answered correctly');
         try {
           await fullMsg.reply(`:man_office_worker: ${good}`);
@@ -170,7 +169,7 @@ export class BadBoss {
           await channel.send(`:man_office_worker: ${good}`);
         }
       } else {
-        const bad = this.badResponses.length ? this.badResponses[Math.floor(Math.random() * this.badResponses.length)] : 'Wrong!';
+        const bad = badResponses.length ? badResponses[Math.floor(Math.random() * badResponses.length)] : 'Wrong!';
         logger.info('User answered incorrectly');
         try {
           await fullMsg.reply(`:man_office_worker: ${bad} The correct answer was **${letterEmojis[correctIndex]}**.`);

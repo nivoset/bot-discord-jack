@@ -22,11 +22,14 @@
   "homepage": "https://github.com/LakeYS/Discord-Trivia-Bot#readme",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.842.0",
+    "@libsql/client": "^0.15.9",
     "discord.js": "^14.20.0",
     "dotenv": "^16.5.0",
     "js-yaml": "^4.1.0",
     "pino": "^9.7.0",
-    "pino-pretty": "^13.0.0"
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.25.74"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
