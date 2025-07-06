@@ -66,7 +66,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ROLE_NAME>
+          role-to-assume: arn:aws:iam::479166146426:user/github-beanstalk
           aws-region: ${{ env.AWS_REGION }}
 
       # ✅ Upload deployment package to S3
