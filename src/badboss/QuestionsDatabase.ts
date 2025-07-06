@@ -3,9 +3,13 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import logger from './logger';
+import logger from './logger.js';
 import { Readable } from 'stream';
 import { z } from 'zod';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const DB_PATH = path.join(__dirname, '../../questions.db');
 const YAML_PATH = path.join(__dirname, '../../Questions/questions_1.union.yml');

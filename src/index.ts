@@ -1,8 +1,97 @@
+import express from 'express';
+import session from 'express-session';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import bodyParser from 'body-parser';
 import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, Interaction, ChatInputCommandInteraction, Message, TextChannel, MessageReaction, User, Partials, PermissionsBitField } from 'discord.js';
 import 'dotenv/config';
-import * as path from 'path';
-import { BadBoss } from './badboss/BadBoss';
-import logger from './badboss/logger';
+import logger from './badboss/logger.js';
+import { BadBoss } from './badboss/BadBoss.js';
+import questionsApi from './badboss/questionsApi.js';
+import pinoHttp from 'pino-http';
+
+const app = express();
+app.use(pinoHttp());
+const PORT = process.env.PORT || 3000;
+
+app.use(bodyParser.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'supersecret',
+  resave: false,
+  saveUninitialized: false,
+}));
+
+// Discord OAuth2 config
+const DISCORD_CLIENT_ID = process.env.DISCORD_CIENT_ID!;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:5173/auth/discord/callback';
+
+app.get('/auth/discord', (req, res) => {
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    redirect_uri: DISCORD_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'identify',
+    prompt: 'consent',
+  });
+  res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+});
+
+// @ts-expect-error
+app.get('/auth/discord/callback', (async (req, res) => {
+  const code = req.query.code as string;
+  if (!code) return res.status(400).send('No code provided');
+  try {
+    // Exchange code for token using fetch
+    const tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        client_secret: DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: DISCORD_REDIRECT_URI,
+        scope: 'identify',
+      }),
+    });
+    if (!tokenRes.ok) throw new Error('Failed to fetch token');
+    const tokenData = await tokenRes.json();
+    const { access_token } = tokenData;
+    // Fetch user info using fetch
+    const userRes = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!userRes.ok) throw new Error('Failed to fetch user info');
+    const userData = await userRes.json();
+    req.session.user = userData;
+    res.redirect('/');
+  } catch (err) {
+    logger.error({ err }, 'Discord OAuth2 error');
+    res.status(500).send('OAuth2 error');
+  }
+}) as any);
+
+app.get('/api/me', (req, res) => {
+  // @ts-expect-error
+  if (req.session.user) {
+    // @ts-expect-error
+    res.json(req.session.user);
+  } else {
+    res.status(401).json({ error: 'Not logged in' });
+  }
+});
+
+app.use('/api/questions', questionsApi);
+
+// Serve static files from frontend/dist
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDist));
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 const channelId = process.env.CHANNEL_ID;
 
@@ -110,3 +199,13 @@ const badBoss = new BadBoss();
     logger.info(`[LOG] Message received in #${message.channel?.id || 'unknown'} from ${message.author.tag}: ${message.content}`);
   });
 })();
+
+app.get('/auth/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/');
+  });
+});
+
+app.listen(PORT, () => {
+  logger.info(`Express server running on http://localhost:${PORT}`);
+});

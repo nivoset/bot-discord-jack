@@ -1,6 +1,6 @@
 import { TextChannel, Message, MessageReaction, User, ChatInputCommandInteraction } from 'discord.js';
-import logger from './logger';
-import { getRandomQuestion, getGoodResponses, getBadResponses, getPossibleAnswers, type TriviaQuestion } from './QuestionsDatabase';
+import logger from './logger.js';
+import { getRandomQuestion, getGoodResponses, getBadResponses, getPossibleAnswers, type TriviaQuestion } from './QuestionsDatabase.js';
 
 export async function sendQuestionWithReactions(
   channel: TextChannel,

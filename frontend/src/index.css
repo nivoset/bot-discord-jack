@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  /* Discord light theme (default) */
+  --color-primary: #5865f2;
+  --color-secondary: #23272a;
+  --color-bg: #f6f6f7;
+  --color-header: #fff;
+  --color-text: #23272a;
+  --color-accent: #5865f2;
+  --color-accent-hover: #4752c4;
+  --color-card: #fff;
+}
+
+
+/*
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+... (rest of default Vite CSS commented out for clarity)
+*/
+
+/* use css reset */
