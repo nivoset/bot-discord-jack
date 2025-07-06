@@ -17,6 +17,7 @@ jobs:
       APPLICATION_NAME: evil-trivia-boss
       ENVIRONMENT_NAME: Evil-trivia-boss-env
       DEPLOY_ZIP: deploy.zip
+      S3_BUCKET: marginal-productions-test # 👈 create this bucket first
 
     steps:
       - name: Checkout code
@@ -61,19 +62,31 @@ jobs:
           cd dist
           zip -r ../${{ env.DEPLOY_ZIP }} .
 
-      # 🔥 Configure AWS credentials using OIDC
+      # ✅ Configure AWS credentials using OIDC
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::479166146426:role/GitHubActionsElasticBeanstalkRole
+          role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ROLE_NAME>
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to Elastic Beanstalk
-        uses: einaregilsson/beanstalk-deploy@v21
-        with:
-          application_name: ${{ env.APPLICATION_NAME }}
-          environment_name: ${{ env.ENVIRONMENT_NAME }}
-          region: ${{ env.AWS_REGION }}
-          version_label: ${{ github.sha }}
-          deployment_package: ${{ env.DEPLOY_ZIP }}
-          use_existing_credentials: true
+      # ✅ Upload deployment package to S3
+      - name: Upload deployment package to S3
+        run: |
+          aws s3 cp ${{ env.DEPLOY_ZIP }} s3://${{ env.S3_BUCKET }}/deployments/${{ github.sha }}.zip
+
+      # ✅ Create new application version
+      - name: Create new Elastic Beanstalk application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ env.APPLICATION_NAME }} \
+            --version-label ${{ github.sha }} \
+            --source-bundle S3Bucket=${{ env.S3_BUCKET }},S3Key=deployments/${{ github.sha }}.zip \
+            --region ${{ env.AWS_REGION }}
+
+      # ✅ Update Elastic Beanstalk environment
+      - name: Update Elastic Beanstalk environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name ${{ env.ENVIRONMENT_NAME }} \
+            --version-label ${{ github.sha }} \
+            --region ${{ env.AWS_REGION }}
