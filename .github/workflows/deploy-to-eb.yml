@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+
 permissions:
   id-token: write
   contents: read
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -66,3 +68,4 @@ jobs:
           region: ${{ env.AWS_REGION }}
           version_label: ${{ github.sha }}
           deployment_package: ${{ env.DEPLOY_ZIP }}
+          use_existing_credentials: true
