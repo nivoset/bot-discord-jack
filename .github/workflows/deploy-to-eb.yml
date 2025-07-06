@@ -1,0 +1,61 @@
+name: Build and Deploy to AWS Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      APPLICATION_NAME: evil-trivia-boss
+      ENVIRONMENT_NAME: Evil-trivia-boss-env
+      DEPLOY_ZIP: deploy.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install backend dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Build backend
+        working-directory: .
+        run: npm run build
+
+      - name: Copy frontend build to backend dist/public
+        run: |
+          mkdir -p dist/public
+          cp -r frontend/dist/* dist/public/
+
+      - name: Zip backend dist for deployment
+        run: |
+          cd dist
+          zip -r ../${{ env.DEPLOY_ZIP }} .
+
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v21
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ env.APPLICATION_NAME }}
+          environment_name: ${{ env.ENVIRONMENT_NAME }}
+          region: ${{ env.AWS_REGION }}
+          version_label: ${{ github.sha }}
+          deployment_package: ${{ env.DEPLOY_ZIP }} 

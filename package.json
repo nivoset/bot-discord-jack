@@ -1,15 +1,18 @@
 {
-  "type": "module",
   "name": "discord-trivia-bot",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "build": "tsc && npm run build:frontend",
-    "build:frontend": "cd frontend && npm run build",
-    "start": "node dist/index.js",
-    "dev": "ts-node-dev --loader ts-node/esm src/index.ts",
-    "test": "vitest run"
+    "pre-start": "npm run setup",
+    "setup": "npm install && npm install --workspaces && npm run build --workspaces",
+    "build": "npm run build --workspaces && tsc -p .",
+    "start": "node dist/index.js"
   },
+  "type": "module",
+  "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/LakeYS/Discord-Trivia-Bot.git"
