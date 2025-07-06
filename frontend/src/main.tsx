@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router'
 import Dashboard from './Dashboard'
 import EditQuestion from './EditQuestion'
+import CreateQuestion from './CreateQuestion'
 
 const rootRoute = createRootRoute({
   component: App,
@@ -27,9 +28,16 @@ export const editQuestionRoute = createRoute({
   component: EditQuestion,
 })
 
+export const createQuestionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/questions/new',
+  component: CreateQuestion,
+})
+
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   editQuestionRoute,
+  createQuestionRoute,
 ])
 
 const router = createRouter({

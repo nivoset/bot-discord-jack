@@ -9,20 +9,30 @@ import logger from './badboss/logger.js';
 import { BadBoss } from './badboss/BadBoss.js';
 import questionsApi from './badboss/questionsApi.js';
 import pinoHttp from 'pino-http';
+import cors from 'cors';
 
 const app = express();
 app.use(pinoHttp());
 const PORT = process.env.PORT || 3000;
+
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+}));
 
 app.use(bodyParser.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecret',
   resave: false,
   saveUninitialized: false,
+  cookie: {
+    sameSite: 'lax', // 'lax' works for most local dev, use 'none' + secure: true for HTTPS
+    secure: false,   // set to true if using HTTPS
+  },
 }));
 
 // Discord OAuth2 config
-const DISCORD_CLIENT_ID = process.env.DISCORD_CIENT_ID!;
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:5173/auth/discord/callback';
 
@@ -31,7 +41,7 @@ app.get('/auth/discord', (req, res) => {
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: DISCORD_REDIRECT_URI,
     response_type: 'code',
-    scope: 'identify',
+    scope: 'identify guilds',
     prompt: 'consent',
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
@@ -52,7 +62,7 @@ app.get('/auth/discord/callback', (async (req, res) => {
         grant_type: 'authorization_code',
         code,
         redirect_uri: DISCORD_REDIRECT_URI,
-        scope: 'identify',
+        scope: 'identify guilds',
       }),
     });
     if (!tokenRes.ok) throw new Error('Failed to fetch token');
@@ -64,6 +74,13 @@ app.get('/auth/discord/callback', (async (req, res) => {
     });
     if (!userRes.ok) throw new Error('Failed to fetch user info');
     const userData = await userRes.json();
+    // Fetch user guilds
+    const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+    if (!guildsRes.ok) throw new Error('Failed to fetch user guilds');
+    const guilds = await guildsRes.json();
+    userData.guilds = guilds;
     req.session.user = userData;
     res.redirect('/');
   } catch (err) {

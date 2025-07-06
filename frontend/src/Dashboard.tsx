@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { editQuestionRoute } from './main';
+import { editQuestionRoute, createQuestionRoute } from './main';
 
 export interface Question {
   id: string;
@@ -31,6 +31,14 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-8 w-full">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-gray-900 dark:text-gray-100 w-full max-w-2xl">
+          <div className="flex justify-end mb-4">
+            <Link
+              to={createQuestionRoute.to}
+              className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg font-semibold shadow hover:bg-blue-700 dark:hover:bg-blue-600 transition"
+            >
+              + New Question
+            </Link>
+          </div>
           <h2 className="text-xl font-semibold mb-4">Questions</h2>
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {questions && questions.length > 0 ? (
